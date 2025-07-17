@@ -1,7 +1,7 @@
 import os #
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" #
-from Experiments.cnn_experiment import train_us_model
-from Data.generate_chart import GenerateStockData
+from Experimenter.cnn_experiment import train_us_model
+from Scripts_2.Renderer.generate_chart import GenerateStockData
 from Data.generate_year import GenerateYearStockData
 import torch #
 

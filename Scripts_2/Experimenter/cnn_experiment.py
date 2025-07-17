@@ -20,13 +20,13 @@ import torch.optim as optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader, ConcatDataset, random_split
 
-from Model import cnn_model
-from Portfolio import portfolio as pf
+from CNNModeler import cnn_model
+from PortfolioManager import portfolio as pf
 from Misc import config as cf
-from Data import dgp_config as dcf
+from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
 from Data.chart_dataset import EquityDataset, TS1DDataset
-from Data import equity_data as eqd
+from DataHandler import equity_data as eqd
 
 # Experiment Class:
 #

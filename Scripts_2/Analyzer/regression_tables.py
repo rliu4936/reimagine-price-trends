@@ -6,7 +6,7 @@ from sklearn.metrics import log_loss, r2_score
 from statsmodels.discrete.discrete_model import Logit
 from statsmodels.regression.linear_model import OLS
 
-from Data.dgp_config import CACHE_DIR
+from DataHandler.dgp_config import CACHE_DIR
 from Misc import config as cf
 from Misc import utilities as ut
 

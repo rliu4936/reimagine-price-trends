@@ -3,7 +3,7 @@ import numpy as np
 import math
 from PIL import Image, ImageDraw
 
-from Data import dgp_config as dcf
+from DataHandler import dgp_config as dcf
 
 
 class DrawChartError(Exception):

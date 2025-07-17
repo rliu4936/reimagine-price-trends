@@ -5,8 +5,8 @@ import os
 
 from PIL import Image
 from torch.utils.data import Dataset
-from Data import dgp_config as dcf
-from Data import equity_data as eqd
+from DataHandler import dgp_config as dcf
+from DataHandler import equity_data as eqd
 from Misc import utilities as ut
 
 

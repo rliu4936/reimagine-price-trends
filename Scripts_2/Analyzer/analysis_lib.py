@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from adjustText import adjust_text
 from numpy.polynomial.polynomial import polyfit
 
-from Data.dgp_config import FREQ_DICT, CACHE_DIR, PORTFOLIO, INTERNATIONAL_COUNTRIES
+from DataHandler.dgp_config import FREQ_DICT, CACHE_DIR, PORTFOLIO, INTERNATIONAL_COUNTRIES
 from Misc.config import OOS_YEARS
-from Portfolio.portfolio import PortfolioManager
+from PortfolioManager.portfolio import PortfolioManager
 from Misc import utilities as ut
 
 

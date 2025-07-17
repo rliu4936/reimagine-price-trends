@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from Data import equity_data as eqd
-from Data import chart_library as cl
-from Data import dgp_config as dcf
+from DataHandler import equity_data as eqd
+from DataHandler import chart_library as cl
+from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
 
 import time
