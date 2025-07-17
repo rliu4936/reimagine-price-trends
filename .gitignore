@@ -2,4 +2,4 @@ WORK_SPACE/
 CACHE_DIR/
 cnn_env/
 
-*.html
+# *.html
