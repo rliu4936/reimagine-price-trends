@@ -1404,17 +1404,18 @@ def run_arch_comparison(
         exp_obj.train_empirical_ensem_model(pretrained=pretrained)
         exp_obj.calculate_portfolio(load_saved_data=load_saved_data, is_ensem_res=False)
 
-
-def train_us_model(
+        
+def train_ensem_model(
     ws_list,
     pw_list,
+    country="USA",
     dp=0.50,
     ensem=5,
     total_worker=1,
     dn=None,
     from_ensem_res=True,
     ensem_range=None,
-    train_size_ratio=0.7, # Single training period (1993–2000): 70% train / 30% valid
+    train_size_ratio=None,
     is_ensem_res=True,
     vb=True,
     ma=True,
@@ -1439,17 +1440,18 @@ def train_us_model(
         worker_idx = 0
 
     setting_list = list(itertools.product(ws_list, pw_list))
-
-
-    print(
-        f"Worker {worker_idx} from {total_worker} workers for {len(setting_list)} jobs"
-    )
+    print(f"Worker {worker_idx} from {total_worker} workers for {len(setting_list)} jobs")
 
     worker_setting_list = [
         setting_list[i] for i in range(worker_idx, len(setting_list), total_worker)
     ]
+
     if dn is None:
-        dn = (worker_idx + 0) % 2
+        dn = worker_idx % 2
+
+    # Default train_size_ratio if not specified
+    if train_size_ratio is None:
+        train_size_ratio = 0.9 if country == "CN" else 0.7
 
     for ws, pw in worker_setting_list:
         exp_obj = get_bl_exp_obj(
@@ -1470,6 +1472,7 @@ def train_us_model(
             ts_scale=ts_scale,
             regression_label=regression_label,
             lr=lr,
+            country=country
         )
 
         exp_obj.train_empirical_ensem_model(ensem_range=ensem_range)

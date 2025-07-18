@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from DataHandler import equity_data as eqd
-from DataHandler import chart_library as cl
+from Renderer import chart_library as cl
 from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
 
@@ -303,7 +303,8 @@ class GenerateStockData(object):
             stock_df = self.df.xs(stock_id, level=1).copy()
             stock_df = stock_df.reset_index()
             dates = eqd.get_period_end_dates(self.freq, country=self.country)
-            dates = dates[dates.year == self.year]
+            dates = pd.to_datetime(dates)
+            dates = dates[dates.dt.year == self.year]  # ✅ safe and correct
             for j, date in enumerate(dates):
                 try:
                     image_label_data = self._generate_daily_features(stock_df, date)
@@ -584,3 +585,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+                

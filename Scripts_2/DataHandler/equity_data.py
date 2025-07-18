@@ -58,6 +58,7 @@ def get_index_ret(freq: str = "week", country: str = "CN") -> pd.DataFrame:
 
 
 def get_stock_ret(country: str = "CN") -> pd.DataFrame:
+
     # Return cleaned + derived-feature stock returns for given country
     country = country.upper()
     path = op.join(dcf.PROCESSED_DATA_DIR, f"{country}_stock_ret.feather")
@@ -85,6 +86,10 @@ def _add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     df["MarketCap"] = np.abs(df["Close"] * df["Shares"])
     df["log_ret"] = np.log1p(df["Ret"])
     df["cum_log_ret"] = df.groupby("StockID")["log_ret"].cumsum(skipna=True)
+
+    df["EWMA_vol"] = df.groupby("StockID")["Ret"].transform(
+        lambda x: (x**2).ewm(alpha=0.05).mean().shift(periods=1)
+    )
 
     # period‑end returns
     for freq in ("week", "month", "quarter"):
@@ -116,7 +121,10 @@ def get_period_end_dates(freq: str, country: str = "CN") -> pd.DatetimeIndex:
     if op.exists(path):
         return pd.read_csv(path, parse_dates=["Date"])["Date"]
 
-    df = get_stock_ret(country = country)
+    if country == "CN":
+        df = get_format_raw_cn_stock_data()
+    elif country == "US":
+        df = get_format_raw_us_stock_data()
 
     df = df.reset_index() if "Date" not in df.columns else df
     df["Date"] = pd.to_datetime(df["Date"])
