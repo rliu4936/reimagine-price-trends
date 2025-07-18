@@ -1,11 +1,11 @@
-name: cnn
+name: cnn310
 channels:
   - pytorch #
   - conda-forge
   - defaults
 dependencies:
   - pip>=22.1,<23
-  - python=3.8.13
+  - python=3.10.1
   - pandas>=1.5,<2
   - tqdm>=4.64,<5
   - numpy>=1.23,<2

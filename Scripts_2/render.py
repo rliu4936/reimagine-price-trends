@@ -42,11 +42,11 @@ def chunked(lst, size):
         yield lst[i:i + size]
 
 if __name__ == "__main__":
-    year_list = list(range(1993, 2026))  # Replace with any list of years
+    year_list = list(range(1994, 2026))  # Replace with any list of years
     
     with Manager() as manager:
         semaphore = manager.Semaphore(1)
-        for year_chunk in chunked(year_list, 11):
+        for year_chunk in chunked(year_list, 1):
             processes = []
             for year in year_chunk:
                 p = Process(target=process_year, args=(year, semaphore))

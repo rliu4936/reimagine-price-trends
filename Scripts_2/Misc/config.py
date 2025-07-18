@@ -13,7 +13,8 @@ LOG_DIR = get_dir(os.path.join(EXP_DIR, "log"))
 LATEX_DIR = get_dir(os.path.join(EXP_DIR, "latex"))
 LIGHT_CSV_RES_DIR = get_dir(os.path.join(WORK_DIR, "torch_ta/ta/csv_res/"))
 
-BATCH_SIZE = 128
+# BATCH_SIZE = 128
+BATCH_SIZE = 16
 TRUE_DATA_CNN_INPLANES = 64
 BENCHMARK_MODEL_LAYERNUM_DICT = {5: 2, 20: 3, 60: 4}
 EMP_CNN_BL_SETTING = {
@@ -53,7 +54,7 @@ START_YEAR_DICT = {
 # OOS_YEARS = list(range(2001, 2026))
 
 SPLIT_YEARS = 2024
-IS_YEARS = list(range(1993, SPLIT_YEARS))
+IS_YEARS = list(range(1994, SPLIT_YEARS))
 OOS_YEARS = list(range(SPLIT_YEARS, 2026))
 
 BENCHMARK_MODEL_NAME_DICT = {

@@ -25,7 +25,7 @@ from PortfolioManager import portfolio as pf
 from Misc import config as cf
 from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
-from Data.chart_dataset import EquityDataset, TS1DDataset
+from Renderer.chart_dataset import EquityDataset, TS1DDataset
 from DataHandler import equity_data as eqd
 
 # Experiment Class:
@@ -1328,7 +1328,8 @@ def get_bl_exp_obj(
 
 def run_arch_comparison(
     ws=20,
-    pw=20,
+    pw=5,
+    country="CN",
     ensem=5,
     load_saved_data=True,
     dn=None,
@@ -1385,6 +1386,7 @@ def run_arch_comparison(
         exp_obj = get_exp_obj_by_spec(
             ws,
             pw,
+            country=country,
             train_freq=None,
             ensem=ensem,
             dn=dn,
@@ -1408,7 +1410,7 @@ def run_arch_comparison(
 def train_ensem_model(
     ws_list,
     pw_list,
-    country="USA",
+    country="CN",
     dp=0.50,
     ensem=5,
     total_worker=1,
