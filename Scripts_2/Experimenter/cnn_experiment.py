@@ -867,18 +867,19 @@ class Experiment(object):
         else:
             whole_ensemble_res = None
 
-        print("**** whole_ensemble_res's value is ****", whole_ensemble_res)
+        print("**** whole_ensemble_res value is ****", whole_ensemble_res)
 
         pf_obj = pf.PortfolioManager(
-            whole_ensemble_res,
-            self.pf_freq,
-            self.pf_dir,
+            signal_df=whole_ensemble_res,
+            freq=self.pf_freq,
+            portfolio_dir=self.pf_dir,
             country=self.country,
             delay_list=delay_list,
             load_signal=load_signal,
             custom_ret=custom_ret,
             transaction_cost=transaction_cost,
         )
+
         return pf_obj
 
     def load_ensem_res(self, year=None, multiindex=False, freq=None):
@@ -939,7 +940,7 @@ class Experiment(object):
         if freq is None:
             freq = self.pf_freq
         ensem_res = self.load_ensem_res(year=year, multiindex=True, freq=freq)
-        period_ret = eqd.get_period_ret(freq, country=self.country)
+        period_ret = eqd.get_stock_ret_freqs(freq, country=self.country)
         print(f"Loading ensem res with {freq} return of no delay")
         ensem_res["period_ret"] = period_ret[f"next_{freq}_ret"]
         ensem_res.dropna(inplace=True)
@@ -1081,6 +1082,25 @@ class Experiment(object):
         df["Sample Number"] = df["Sample Number"].astype(int)
         return df
 
+
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+
+
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+
+
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+# -------------------------split into new file------------------------------------------------
+
+
+
+
+
 # get_exp_obj_by_spec:
 #
 # Factory function that instantiates an Experiment object with a specific CNN
@@ -1089,6 +1109,8 @@ class Experiment(object):
 # - Builds the CNN architecture using cnn_model.py.
 # - Returns a fully initialized Experiment object, ready to train.
 # Useful for automated grid search or architectural experiments.
+
+
 
 def get_exp_obj_by_spec(
     ws,
@@ -1336,6 +1358,7 @@ def run_arch_comparison(
     ohlc_len=None,
     tl=None,
     pretrained=True,
+    calculate_portfolio=False,
     chart_type="bar",
     total_worker=1,
     worker_idx=0,
@@ -1404,7 +1427,8 @@ def run_arch_comparison(
             print(exp_obj.load_oos_ensem_stat())
             continue
         exp_obj.train_empirical_ensem_model(pretrained=pretrained)
-        exp_obj.calculate_portfolio(load_saved_data=load_saved_data, is_ensem_res=False)
+        if calculate_portfolio:
+            exp_obj.calculate_portfolio(load_saved_data=load_saved_data, is_ensem_res=False)
 
         
 def train_ensem_model(
