@@ -43,55 +43,6 @@ class PortfolioManager(object):
     
 
 
-    def save_decile_weights(signal_df, weight_type, cut, ret_name, output_dir):
-        """
-        Step 1: Split signal_df into deciles based on up_prob and save the portfolio weights.
-        This does not require any knowledge of future returns, so it can be run in a live setting.
-        """
-        assert weight_type in ["ew", "vw"]
-        os.makedirs(output_dir, exist_ok=True)
-
-        dates = np.sort(np.unique(signal_df.index.get_level_values("Date")))
-        decile_weight_dict = {}
-
-        for i, date in enumerate(dates):
-            rebalance_df = signal_df.loc[date].copy()
-            low = np.percentile(rebalance_df.up_prob, 10)
-            high = np.percentile(rebalance_df.up_prob, 90)
-            if low == high:
-                continue
-
-            date_weights = {}
-            for j in range(cut):
-                rebalance_up_prob = rebalance_df.up_prob
-                low = np.percentile(rebalance_up_prob, j * 100.0 / cut)
-                high = np.percentile(rebalance_up_prob, (j + 1) * 100.0 / cut)
-                if j == 0:
-                    pf_filter = (rebalance_up_prob >= low) & (rebalance_up_prob <= high)
-                else:
-                    pf_filter = (rebalance_up_prob > low) & (rebalance_up_prob <= high)
-                _decile_df = rebalance_df[pf_filter].copy()
-                if weight_type == "ew":
-                    stock_num = len(_decile_df)
-                    _decile_df["weight"] = (
-                        pd.Series(np.ones(stock_num), dtype=float, index=_decile_df.index)
-                        / stock_num
-                    )
-                else:
-                    value = _decile_df.MarketCap
-                    _decile_df["weight"] = pd.Series(value, dtype=float) / np.sum(value)
-
-                date_weights[j] = _decile_df["weight"]
-
-            decile_weight_dict[date] = date_weights
-
-        # Save weights for later use in backtesting
-        weight_file_path = os.path.join(output_dir, f"decile_weights_{weight_type}.pkl")
-        with open(weight_file_path, "wb") as f:
-            import pickle
-            pickle.dump(decile_weight_dict, f)
-
-        return weight_file_path
     
 
     def generate_portfolio(self, cut=10, delay=0):
@@ -113,6 +64,92 @@ class PortfolioManager(object):
                 summary_df = summary_df.astype(float).round(2)
                 file.write(ut.to_latex_w_turnover(summary_df, cut=cut))
 
+def save_decile_weights(signal_df, weight_type, cut, output_dir):
+    """
+    Step 1: Split signal_df into deciles based on up_prob and save the portfolio weights.
+    This does not require any knowledge of future returns, so it can be run in a live setting.
+    """
+    assert weight_type in ["ew", "vw"]
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"📥 Starting save_decile_weights: {len(signal_df)} rows, weight_type={weight_type}, deciles={cut}")
+    dates = np.sort(signal_df.index.unique())
+    print(f"📅 Found {len(dates)} unique dates to process")
+
+    decile_weight_dict = {}
+
+    for i, date in enumerate(dates):
+        print(f"🔄 Processing date {date} ({i+1}/{len(dates)})")
+        rebalance_df = signal_df.loc[date].copy()
+        low = np.percentile(rebalance_df.up_prob, 10)
+        high = np.percentile(rebalance_df.up_prob, 90)
+        if low == high:
+            print(f"⚠️ Skipping date {date} due to no variation in up_prob")
+            continue
+
+        date_weights = {}
+        for j in range(cut):
+            rebalance_up_prob = rebalance_df.up_prob
+            low = np.percentile(rebalance_up_prob, j * 100.0 / cut)
+            high = np.percentile(rebalance_up_prob, (j + 1) * 100.0 / cut)
+            if j == 0:
+                pf_filter = (rebalance_up_prob >= low) & (rebalance_up_prob <= high)
+            else:
+                pf_filter = (rebalance_up_prob > low) & (rebalance_up_prob <= high)
+            _decile_df = rebalance_df[pf_filter].copy()
+            if weight_type == "ew":
+                stock_num = len(_decile_df)
+                if stock_num == 0:
+                    print(f"⚠️ Empty decile {j} on date {date}")
+                    continue
+                _decile_df["weight"] = (
+                    pd.Series(np.ones(stock_num), dtype=float, index=_decile_df.index)
+                    / stock_num
+                )
+            else:
+                value = _decile_df.MarketCap
+                _decile_df["weight"] = pd.Series(value, dtype=float) / np.sum(value)
+
+            date_weights[j] = _decile_df["weight"]
+            print(f"✅ Decile {j} on {date}: {len(_decile_df)} stocks")
+
+        decile_weight_dict[date] = date_weights
+
+    weight_file_path = os.path.join(output_dir, f"decile_weights_{weight_type}.pkl")
+    with open(weight_file_path, "wb") as f:
+        import pickle
+        pickle.dump(decile_weight_dict, f)
+
+    print(f"💾 Saved decile weights to {weight_file_path}")
+    return weight_file_path
+
+def save_current_decile_weights(
+    signal_df: pd.DataFrame,
+    cut: int = 10,
+    output_path: str | None = None,
+) -> pd.DataFrame:
+
+    if "up_prob" not in signal_df.columns:
+        raise KeyError("signal_df must contain column 'up_prob'")
+
+    n = len(signal_df)
+    if n == 0:
+        raise ValueError("signal_df is empty")
+
+    df = signal_df.copy()
+
+    # rank up_prob ascending → lowest gets rank 1
+    ranks = df["up_prob"].rank(method="first", ascending=True)
+    df["decile"] = ((ranks - 1) / n * cut).astype(int)
+
+    # final ordering: highest up_prob at the top
+    df = df.sort_values("up_prob", ascending=False).reset_index(drop=True)
+
+    if output_path:
+        df.to_csv(output_path, index=False)
+        print(f"✅ Saved decile assignments to {output_path}")
+
+    return df
 
 
 def main():

@@ -5,7 +5,10 @@
 # validation, evaluation, and portfolio construction workflows.
 
 import copy
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 import itertools
 import math
@@ -25,7 +28,7 @@ from PortfolioManager import portfolio as pf
 from Misc import config as cf
 from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
-from Renderer.chart_dataset import EquityDataset, TS1DDataset
+from Renderer.chart_dataset import EquityDataset, TS1DDataset, CurrentDataset
 from DataHandler import equity_data as eqd
 
 # Experiment Class:
@@ -586,6 +589,14 @@ class Experiment(object):
         for name, param in model.named_parameters():
             if param.requires_grad and name[-8:] == "0.weight":
                 prev_weight_dict[name] = param.data.clone()
+
+
+        val_accy_list = []
+        val_loss_list = []
+        train_accy_list = []
+        train_loss_list = []
+        val_epoch_list = []
+
         for epoch in range(self.max_epoch):
             for phase in ["train", "validate"]:
                 if phase == "train":
@@ -640,10 +651,48 @@ class Experiment(object):
                     data_iterator.update()
                 print(epoch_stat)
                 if phase == "validate":
+                    val_epoch_list.append(epoch)
+                    val_accy_list.append(epoch_stat["accy"])
+                    val_loss_list.append(epoch_stat["loss"])     
+
+                                        
+                                        # Plot and save training + validation metrics
+                    plt.figure(figsize=(10, 4))
+
+                    # Accuracy plot
+                    plt.subplot(1, 2, 1)
+                    plt.plot(val_epoch_list, val_accy_list, marker='o', label='Validation Accuracy')
+                    plt.plot(val_epoch_list, train_accy_list, marker='x', linestyle='--', label='Training Accuracy')
+                    plt.title("Accuracy")
+                    plt.xlabel("Epoch")
+                    plt.ylabel("Accuracy")
+                    plt.ylim(0.5, 0.7)
+                    plt.legend()
+
+                    # Loss plot
+                    plt.subplot(1, 2, 2)
+                    plt.plot(val_epoch_list, val_loss_list, marker='o', label='Validation Loss', color='orange')
+                    plt.plot(val_epoch_list, train_loss_list, marker='x', linestyle='--', label='Training Loss', color='green')
+                    plt.title("Loss")
+                    plt.xlabel("Epoch")
+                    plt.ylabel("Loss")
+                    # plt.ylim(0, 1)
+                    plt.legend()
+
+                    plt.tight_layout()
+                    plot_path = os.path.splitext(model_save_path)[0] + "_val_plot.png"
+                    plt.savefig(plot_path)
+                    print(f"Saved validation plot to: {plot_path}")
+                    plt.close()
+                    
                     if epoch_stat["loss"] < best_validate_metrics["loss"]:
                         for metric in ["loss", "accy", "MCC", "epoch", "diff"]:
                             best_validate_metrics[metric] = epoch_stat[metric]
                         best_model = copy.deepcopy(model.state_dict())
+                
+                elif phase == "train":
+                    train_accy_list.append(epoch_stat["accy"])
+                    train_loss_list.append(epoch_stat["loss"])
 
             for name, param in model.named_parameters():
                 if param.requires_grad:
@@ -679,6 +728,8 @@ class Experiment(object):
         train_metrics["epoch"] = best_validate_metrics["epoch"]
         self.release_dataloader_memory(dataloaders_dict, model)
         del best_validate_metrics["model_state_dict"]
+
+
         return train_metrics, best_validate_metrics, model
 
     @staticmethod
@@ -792,6 +843,47 @@ class Experiment(object):
 
                 df = self._ensemble_results(model_list, year_dataloader)
                 df.to_csv(ensem_res_path)
+
+    #####################
+    #====================
+    #####################
+    def generate_current_ensem_res(self, freq, load_saved_data):
+        # Build paths for each ensemble model checkpoint
+        model_paths = [self.get_model_checkpoint_path(i) for i in range(self.ensem)]
+
+        # Initialize model instances
+        model_list = [self.model_obj.init_model() for _ in range(self.ensem)]
+
+        # Define result file path
+        freq_surfix = f"_{freq}" if freq != dcf.FREQ_DICT[self.pw] else ""
+        ensem_res_path = os.path.join(
+            self.ensem_res_dir, f"ensem{self.ensem}_res_current{freq_surfix}.csv"
+        )
+
+        # Check if result already exists
+        if os.path.exists(ensem_res_path) and load_saved_data:
+            print(f"Found {ensem_res_path}")
+            return
+
+        print(f"Generating {self.ws}d{self.pw}p ensem results for current data with freq {freq}")
+        print(f"Loading saved model from: {model_paths[0]} to {model_paths[-1]}")
+
+        # Load model checkpoints
+        for i, model in enumerate(model_list):
+            model.load_state_dict(
+                self.load_model_state_dict_from_save_path(model_paths[i])
+            )
+
+        # Get dataloader for current data
+        current_dataloader = self._get_dataloader_for_current()
+
+        # Run ensemble prediction and save
+        df = self._ensemble_results(model_list, current_dataloader)
+        df.to_csv(ensem_res_path)
+
+        #####################
+        #====================
+        #####################
 
     def _oos_ensem_stat(self):
         ensem_res = self.load_ensem_res_w_period_ret(
@@ -979,6 +1071,24 @@ class Experiment(object):
             )
         year_dataloader = DataLoader(year_dataset, batch_size=cf.BATCH_SIZE)
         return year_dataloader
+    
+
+    ####
+
+    def _get_dataloader_for_current(self):
+        if self.model_obj.ts1d_model:
+            raise NotImplementedError("Current TS1DDataset not implemented yet.")
+
+        image_dir = os.path.join(dcf.STOCKS_SAVEPATH, "stocks_CN_current", f"20250719-images")
+        
+        if not os.path.exists(image_dir):
+            raise FileNotFoundError(f"Image directory does not exist: {image_dir}")
+        
+        dataset = CurrentDataset(image_dir=image_dir)
+        dataloader = DataLoader(dataset, batch_size=cf.BATCH_SIZE, shuffle=False)
+        return dataloader
+
+    ####
 
     def get_pf_res_path(
         self, weight_type, delay=0, cut=10, file_ext="csv", rank_weight=None
@@ -1341,7 +1451,6 @@ def get_bl_exp_obj(
     return exp_obj
 
 # run_arch_comparison:
-#
 # Automates the comparison of different CNN architectures by:
 # - Iterating over multiple architecture specs (e.g., dropout, filter sizes).
 # - Running experiments in parallel if multiple workers are specified.
@@ -1373,27 +1482,28 @@ def run_arch_comparison(
 
     _ohlc_len = ws if ohlc_len is None else ohlc_len
     param_dict_list = [
-        dict(drop_prob=0),
-        dict(drop_prob=0.25),
-        dict(drop_prob=0.75),
-        dict(inplanes=32),
-        dict(inplanes=128),
-        dict(layer_number=cf.BENCHMARK_MODEL_LAYERNUM_DICT[_ohlc_len] + 1),
-        dict(layer_number=cf.BENCHMARK_MODEL_LAYERNUM_DICT[_ohlc_len] - 1),
-        dict(batch_norm=False),
-        dict(xavier=False),
-        dict(lrelu=False),
-        dict(max_pooling_list=[(2, 2)] * 10),
-        dict(filter_size_list=[(3, 3)] * 10),
-        dict(filter_size_list=[(7, 3)] * 10),
+        dict(drop_prob=0.9),
+        # dict(drop_prob=0),
+        # dict(drop_prob=0.25),
+        # dict(drop_prob=0.75),
+        # dict(inplanes=32),
+        # dict(inplanes=128),
+        # dict(layer_number=cf.BENCHMARK_MODEL_LAYERNUM_DICT[_ohlc_len] + 1),
+        # dict(layer_number=cf.BENCHMARK_MODEL_LAYERNUM_DICT[_ohlc_len] - 1),
+        # # dict(batch_norm=False),
+        # # dict(xavier=False),
+        # # dict(lrelu=False),
+        # dict(max_pooling_list=[(2, 2)] * 10),
+        # dict(filter_size_list=[(3, 3)] * 10),
+        # dict(filter_size_list=[(7, 3)] * 10),
     ]
 
-    if ws != 5:
-        param_dict_list.append(dict(stride_list=[(1, 1)] * 10))
-        param_dict_list.append(dict(dilation_list=[(1, 1)] * 10))
-        param_dict_list.append(
-            dict(dilation_list=[(1, 1)] * 10, stride_list=[(1, 1)] * 10)
-        )
+    # if ws != 5:
+    #     param_dict_list.append(dict(stride_list=[(1, 1)] * 10))
+    #     param_dict_list.append(dict(dilation_list=[(1, 1)] * 10))
+    #     param_dict_list.append(
+    #         dict(dilation_list=[(1, 1)] * 10, stride_list=[(1, 1)] * 10)
+    #     )
 
     print(
         f"Worker {worker_idx} from {total_worker} workers for {len(param_dict_list)} jobs"
