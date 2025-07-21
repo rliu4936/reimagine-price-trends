@@ -5,6 +5,7 @@
 # validation, evaluation, and portfolio construction workflows.
 
 import copy
+from datetime import datetime
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -28,7 +29,10 @@ from PortfolioManager import portfolio as pf
 from Misc import config as cf
 from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
-from Renderer.chart_dataset import EquityDataset, TS1DDataset, CurrentDataset
+from Renderer.equity_dataset import EquityDataset
+from Renderer.ts1d_dataset import TS1DDataset
+from Renderer.current_dataset import CurrentDataset
+
 from DataHandler import equity_data as eqd
 
 # Experiment Class:
@@ -69,7 +73,7 @@ class Experiment(object):
         has_volume_bar=True,
         is_years=cf.IS_YEARS,
         oos_years=cf.OOS_YEARS,
-        country="USA",
+        country="CN",
         transfer_learning=None,
         annual_stocks_num="all",
         tstat_threshold=0,
@@ -856,9 +860,10 @@ class Experiment(object):
 
         # Define result file path
         freq_surfix = f"_{freq}" if freq != dcf.FREQ_DICT[self.pw] else ""
-        ensem_res_path = os.path.join(
-            self.ensem_res_dir, f"ensem{self.ensem}_res_current{freq_surfix}.csv"
-        )
+
+        save_date = datetime.today().strftime("%Y%m%d")
+        ensem_res_path = os.path.join(dcf.WORK_DIR, "current", save_date,f"ensem{self.ensem}_res_current{freq_surfix}.csv")
+
 
         # Check if result already exists
         if os.path.exists(ensem_res_path) and load_saved_data:
@@ -880,6 +885,8 @@ class Experiment(object):
         # Run ensemble prediction and save
         df = self._ensemble_results(model_list, current_dataloader)
         df.to_csv(ensem_res_path)
+
+        return df
 
         #####################
         #====================
@@ -1079,7 +1086,8 @@ class Experiment(object):
         if self.model_obj.ts1d_model:
             raise NotImplementedError("Current TS1DDataset not implemented yet.")
 
-        image_dir = os.path.join(dcf.STOCKS_SAVEPATH, "stocks_CN_current", f"20250719-images")
+        save_date = datetime.today().strftime("%Y%m%d")
+        image_dir = os.path.join(dcf.WORK_DIR, "current", save_date, "images")
         
         if not os.path.exists(image_dir):
             raise FileNotFoundError(f"Image directory does not exist: {image_dir}")
@@ -1228,7 +1236,7 @@ def get_exp_obj_by_spec(
     train_freq=None,
     ensem=5,
     dn=0,
-    country="USA",
+    country="CN",
     transfer_learning=None,
     is_years=cf.IS_YEARS,
     oos_years=cf.OOS_YEARS,
@@ -1363,7 +1371,7 @@ def get_bl_exp_obj(
     ensem=5,
     is_years=cf.IS_YEARS,
     oos_years=cf.OOS_YEARS,
-    country="USA",
+    country="CN",
     inplanes=cf.TRUE_DATA_CNN_INPLANES,
     transfer_learning=None,
     has_ma=True,
@@ -1482,7 +1490,7 @@ def run_arch_comparison(
 
     _ohlc_len = ws if ohlc_len is None else ohlc_len
     param_dict_list = [
-        dict(drop_prob=0.9),
+        dict(drop_prob=0.75, lr=1e-4),
         # dict(drop_prob=0),
         # dict(drop_prob=0.25),
         # dict(drop_prob=0.75),

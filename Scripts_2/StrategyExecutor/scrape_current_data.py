@@ -21,7 +21,7 @@ def download_cn_stocks(save_date: str | None = None,
     beg_date = datetime.today() - timedelta(days=lookback_days)
     beg_str = beg_date.strftime("%Y%m%d")
 
-    save_dir = op.join(dcf.STOCKS_SAVEPATH, "stocks_CN_current", save_date)
+    save_dir = op.join(dcf.WORK_DIR, "current", save_date, "price_data")
     os.makedirs(save_dir, exist_ok=True)
 
     try:

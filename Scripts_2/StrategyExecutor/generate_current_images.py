@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 from tqdm import tqdm
 
-from Renderer.chart_library import DrawOHLC, DrawChartError
+from Renderer.draw_ohlc import DrawOHLC, DrawChartError
 from DataHandler import dgp_config as dcf  # must define STOCKS_SAVEPATH
 
 def generate_images_for_date(save_date: str | None = None,
@@ -39,7 +39,7 @@ def generate_images_for_date(save_date: str | None = None,
     if not op.isdir(data_dir):
         raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    out_dir = op.join(dcf.STOCKS_SAVEPATH, "stocks_CN_current", f"{save_date}-images")
+    out_dir = op.join(dcf.WORK_DIR, "current", save_date, "images")
     os.makedirs(out_dir, exist_ok=True)
 
     csv_files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]

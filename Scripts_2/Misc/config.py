@@ -13,7 +13,7 @@ LOG_DIR = get_dir(os.path.join(EXP_DIR, "log"))
 LATEX_DIR = get_dir(os.path.join(EXP_DIR, "latex"))
 LIGHT_CSV_RES_DIR = get_dir(os.path.join(WORK_DIR, "torch_ta/ta/csv_res/"))
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 TRUE_DATA_CNN_INPLANES = 64
 BENCHMARK_MODEL_LAYERNUM_DICT = {5: 2, 20: 3, 60: 4}
 EMP_CNN_BL_SETTING = {

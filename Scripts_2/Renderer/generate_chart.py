@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from DataHandler import equity_data as eqd
-from Renderer import chart_library as cl
+from Scripts_2.Renderer import draw_ohlc as cl
 from DataHandler import dgp_config as dcf
 from Misc import utilities as ut
 
