@@ -14,7 +14,7 @@ def generate_images_for_date(save_date: str | None = None,
                              has_volume_bar: bool = True,
                              chart_type: str = "bar",
                              ma_lags: tuple[int, ...] = (20,),
-                             verbose: bool = True) -> str:
+                             verbose: bool = False) -> str:
     """
     Render OHLC (or pixel) images from previously downloaded CSVs.
 
@@ -35,12 +35,15 @@ def generate_images_for_date(save_date: str | None = None,
         save_date = datetime.today().strftime("%Y%m%d")
     assert window in (5, 20, 60), "window must be 5, 20, or 60."
 
-    data_dir = op.join(dcf.STOCKS_SAVEPATH, "stocks_CN_current", save_date)
+    data_dir = op.join(dcf.WORK_DIR, "current", save_date, "price_data")
     if not op.isdir(data_dir):
         raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
+
     out_dir = op.join(dcf.WORK_DIR, "current", save_date, "images")
-    os.makedirs(out_dir, exist_ok=True)
+    if not op.isdir(out_dir):
+         os.makedirs(out_dir, exist_ok=True)
+
 
     csv_files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]
     if not csv_files:
@@ -50,6 +53,14 @@ def generate_images_for_date(save_date: str | None = None,
 
     for file in tqdm(csv_files, desc="Rendering charts"):
         code = file[:-4]
+
+        # ---------- CACHE CHECK ----------
+        img_path = op.join(out_dir, f"{code}.png")
+        if op.isfile(img_path):
+            if verbose:
+                print(f"Skip {code}: image already exists")
+            continue
+        # ---------------------------------
         try:
             df = pd.read_csv(op.join(data_dir, file), parse_dates=["Date"], index_col="Date")
             if len(df) < window:

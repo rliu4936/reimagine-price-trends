@@ -9,29 +9,60 @@ import pandas as pd
 
 from DataHandler import dgp_config as dcf  # must define STOCKS_SAVEPATH
 
-
 def download_cn_stocks(save_date: str | None = None,
                        lookback_days: int = 365,
                        min_rows: int = 60,
                        max_tickers: int | None = None,
-                       verbose: bool = True) -> str:
+                       verbose: bool = False) -> str:
     if save_date is None:
         save_date = datetime.today().strftime("%Y%m%d")
 
     beg_date = datetime.today() - timedelta(days=lookback_days)
     beg_str = beg_date.strftime("%Y%m%d")
 
-    save_dir = op.join(dcf.WORK_DIR, "current", save_date, "price_data")
+    base_dir = op.join(dcf.WORK_DIR, "current", save_date)
+    save_dir = op.join(base_dir, "price_data")
     os.makedirs(save_dir, exist_ok=True)
 
-    try:
-        tickers_df = ak.stock_info_a_code_name()
-        tickers = tickers_df["code"].astype(str).tolist()
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch ticker list: {e}")
+    ticker_csv_path = op.join(base_dir, "ticker_list.csv")
 
+    # ----------------- cache ticker list -----------------
+    if op.exists(ticker_csv_path):
+        if verbose:
+            print(f"Using cached ticker list from {ticker_csv_path}")
+        tickers_df = pd.read_csv(ticker_csv_path, dtype={"code": str})
+    else:
+        try:
+            # 1) Full A-share list
+            tickers_df_all = ak.stock_info_a_code_name()
+            all_cnt = len(tickers_df_all)
+            print(f"📊 全部A股数量: {all_cnt}")
+
+            # 2) ST list
+            st_df = ak.stock_zh_a_st_em()
+            st_cnt = len(st_df)
+            print(f"🚫 ST列表数量: {st_cnt}")
+
+            st_codes = set(st_df['代码'].astype(str))
+
+            # 3) Filter only by code
+            tickers_df = tickers_df_all[~tickers_df_all['code'].astype(str).isin(st_codes)]
+
+            # 4) Save
+            tickers_df.to_csv(ticker_csv_path, index=False)
+            if verbose:
+                print(f"✅ 保留正常股票: {len(tickers_df)}，已保存到 {ticker_csv_path}")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch or filter ticker list: {e}")
+
+    # -----------------------------------------------------
+
+    tickers = tickers_df["code"].astype(str).tolist()
     if max_tickers is not None:
         tickers = tickers[:max_tickers]
+
+    
 
     total = len(tickers)
     i = 0
@@ -89,11 +120,11 @@ def download_cn_stocks(save_date: str | None = None,
         except Exception as e:
             print(f"[{i+1}/{total}] Error {code}: {e}")
             input("Press Enter to retry this ticker...")
-            # i not incremented: will retry same ticker
 
     if verbose:
         print(f"Done. Files in: {save_dir}")
     return save_dir
+
 
 
 if __name__ == "__main__":

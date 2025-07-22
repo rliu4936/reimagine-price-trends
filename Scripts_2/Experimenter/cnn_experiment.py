@@ -865,11 +865,11 @@ class Experiment(object):
         ensem_res_path = os.path.join(dcf.WORK_DIR, "current", save_date,f"ensem{self.ensem}_res_current{freq_surfix}.csv")
 
 
-        # Check if result already exists
+           # ---------- CACHE CHECK ----------
         if os.path.exists(ensem_res_path) and load_saved_data:
-            print(f"Found {ensem_res_path}")
-            return
-
+            print(f"Found cached results at {ensem_res_path}")
+            return pd.read_csv(ensem_res_path, index_col=0)  # <- returns the DataFrame
+        # ----------------------------------
         print(f"Generating {self.ws}d{self.pw}p ensem results for current data with freq {freq}")
         print(f"Loading saved model from: {model_paths[0]} to {model_paths[-1]}")
 
@@ -938,7 +938,7 @@ class Experiment(object):
     # - Saves results (typically as CSV) for further analysis.    
     
     def calculate_portfolio(
-        self, load_saved_data=True, delay_list=[0], is_ensem_res=True, cut=10
+        self, load_saved_data=True, delay_list=[0], is_ensem_res=True, cut=20
     ):
         ensem_res_year_list = (
             list(self.is_years) + list(self.oos_years)
