@@ -851,46 +851,55 @@ class Experiment(object):
     #####################
     #====================
     #####################
-    def generate_current_ensem_res(self, freq, load_saved_data):
-        # Build paths for each ensemble model checkpoint
-        model_paths = [self.get_model_checkpoint_path(i) for i in range(self.ensem)]
+    def generate_current_ensem_res(self, freq):
+        import pandas as pd
+        import os
+        from datetime import datetime
 
-        # Initialize model instances
+        model_paths = [self.get_model_checkpoint_path(i) for i in range(self.ensem)]
         model_list = [self.model_obj.init_model() for _ in range(self.ensem)]
 
-        # Define result file path
-        freq_surfix = f"_{freq}" if freq != dcf.FREQ_DICT[self.pw] else ""
-
+        freq_suffix = f"_{freq}" if freq != dcf.FREQ_DICT[self.pw] else ""
         save_date = datetime.today().strftime("%Y%m%d")
-        ensem_res_path = os.path.join(dcf.WORK_DIR, "current", save_date,f"ensem{self.ensem}_res_current{freq_surfix}.csv")
+        ensem_res_path = os.path.join(
+            dcf.WORK_DIR, "current", save_date, f"ensem{self.ensem}_res_current{freq_suffix}.csv"
+        )
 
+        # 🧠 Load cache if available
+        if os.path.exists(ensem_res_path):
+            print(f"📦 Found cached results at {ensem_res_path}")
+            try:
+                df = pd.read_csv(ensem_res_path, dtype={"StockID": str}, parse_dates=["ending_date"])
+                if "StockID" not in df.columns:
+                    raise ValueError("Missing 'StockID' in cache")
+                df["StockID"] = df["StockID"].str.zfill(6)
+                df["Date"] = pd.to_datetime(df["ending_date"])
+                df.set_index("Date", inplace=True)
+                return df
+            except Exception as e:
+                print(f"❌ Cache load failed: {e}")
+                print(f"🧹 Deleting corrupt cache...")
+                os.remove(ensem_res_path)
 
-           # ---------- CACHE CHECK ----------
-        if os.path.exists(ensem_res_path) and load_saved_data:
-            print(f"Found cached results at {ensem_res_path}")
-            return pd.read_csv(ensem_res_path, index_col=0)  # <- returns the DataFrame
-        # ----------------------------------
-        print(f"Generating {self.ws}d{self.pw}p ensem results for current data with freq {freq}")
-        print(f"Loading saved model from: {model_paths[0]} to {model_paths[-1]}")
+        # 🛠 Generate predictions
+        print(f"⚙️  Generating {self.ws}d{self.pw}p ensemble results (freq: {freq})")
+        print(f"📁 Loading models from {model_paths[0]} to {model_paths[-1]}")
 
-        # Load model checkpoints
         for i, model in enumerate(model_list):
-            model.load_state_dict(
-                self.load_model_state_dict_from_save_path(model_paths[i])
-            )
+            model.load_state_dict(self.load_model_state_dict_from_save_path(model_paths[i]))
 
-        # Get dataloader for current data
         current_dataloader = self._get_dataloader_for_current()
-
-        # Run ensemble prediction and save
         df = self._ensemble_results(model_list, current_dataloader)
+
+        df["StockID"] = df["StockID"].astype(str).str.zfill(6)
+        df["Date"] = pd.to_datetime(df["ending_date"])
+        df.set_index("Date", inplace=True)
+
         df.to_csv(ensem_res_path)
+        print(f"💾 Saved results to {ensem_res_path}")
 
         return df
 
-        #####################
-        #====================
-        #####################
 
     def _oos_ensem_stat(self):
         ensem_res = self.load_ensem_res_w_period_ret(

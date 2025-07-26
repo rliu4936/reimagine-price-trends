@@ -142,6 +142,8 @@ class PortfolioManager(object):
                 )
             else:
                 value = _decile_df.MarketCap
+                value = np.log(_decile_df.MarketCap)
+                value = np.sqrt(_decile_df.MarketCap)
                 _decile_df["weight"] = pd.Series(value, dtype=float) / np.sum(value) #
             _decile_df["inv_ret"] = _decile_df["weight"] * _decile_df[ret_name]
             return _decile_df
@@ -473,6 +475,42 @@ def save_current_decile_weights(
 
     return df
 
+
+def save_current_tech_rank(
+    signal_df: pd.DataFrame,
+    output_path: str | None = None,
+) -> pd.DataFrame:
+    """Assign deciles by 'up_prob', ensure 'Close', optional top-N, save CSV."""
+
+    # need up_prob
+    if "up_prob" not in signal_df.columns:
+        raise KeyError("signal_df must contain 'up_prob'")
+
+    df = signal_df.copy()  # copy
+
+    # ensure Close
+    if "Close" not in df.columns:
+        if output_path is None:
+            raise KeyError("'Close' missing and no output_path to infer data dir")
+        date_dir = os.path.dirname(output_path)              # date dir
+        price_data_dir = os.path.join(date_dir, "price_data")  # price dir
+        if not os.path.isdir(price_data_dir):
+            raise FileNotFoundError(f"price_data not found: {price_data_dir}")
+        close_map = _latest_close_map(price_data_dir)        # load map
+        df["Close"] = df["StockID"].map(close_map)           # fill Close
+        if df["Close"].isna().any():
+            missing = df[df["Close"].isna()]["StockID"].tolist()
+            raise ValueError(f"Close price not found for: {missing}")
+
+    df['tech_rank'] = df['up_prob'].rank(method='min', ascending=False)
+    df = df.sort_values("up_prob", ascending=False).reset_index(drop=True)  # sort by prob
+    
+    # save
+    if output_path:
+        df.to_csv(output_path, index=False)
+        print(f"✅ Saved decile assignments to {output_path}")
+
+    return df
 
 def main():
     pass

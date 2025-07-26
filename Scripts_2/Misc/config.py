@@ -52,7 +52,7 @@ START_YEAR_DICT = {
 # IS_YEARS = list(range(1993, 2001))
 # OOS_YEARS = list(range(2001, 2026))
 
-SPLIT_YEARS = 2025
+SPLIT_YEARS = 2024
 IS_YEARS = list(range(1994, SPLIT_YEARS))
 OOS_YEARS = list(range(SPLIT_YEARS, 2026))
 

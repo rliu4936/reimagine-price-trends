@@ -6,11 +6,12 @@ import time
 import akshare as ak
 import efinance as ef
 import pandas as pd
+from tqdm import tqdm  # added tqdm
 
 from DataHandler import dgp_config as dcf  # must define STOCKS_SAVEPATH
 
 def download_cn_stocks(save_date: str | None = None,
-                       lookback_days: int = 365,
+                       lookback_days: int = 150,
                        min_rows: int = 60,
                        max_tickers: int | None = None,
                        verbose: bool = False) -> str:
@@ -26,68 +27,52 @@ def download_cn_stocks(save_date: str | None = None,
 
     ticker_csv_path = op.join(base_dir, "ticker_list.csv")
 
-    # ----------------- cache ticker list -----------------
+    # ----- Load or generate ticker list -----
     if op.exists(ticker_csv_path):
         if verbose:
-            print(f"Using cached ticker list from {ticker_csv_path}")
+            print(f"📄 Using cached ticker list from {ticker_csv_path}")
         tickers_df = pd.read_csv(ticker_csv_path, dtype={"code": str})
     else:
         try:
-            # 1) Full A-share list
             tickers_df_all = ak.stock_info_a_code_name()
-            all_cnt = len(tickers_df_all)
-            print(f"📊 全部A股数量: {all_cnt}")
+            print(f"📊 全部A股数量: {len(tickers_df_all)}")
 
-            # 2) ST list
             st_df = ak.stock_zh_a_st_em()
-            st_cnt = len(st_df)
-            print(f"🚫 ST列表数量: {st_cnt}")
+            print(f"🚫 ST列表数量: {len(st_df)}")
 
             st_codes = set(st_df['代码'].astype(str))
-
-            # 3) Filter only by code
             tickers_df = tickers_df_all[~tickers_df_all['code'].astype(str).isin(st_codes)]
 
-            # 4) Save
             tickers_df.to_csv(ticker_csv_path, index=False)
             if verbose:
                 print(f"✅ 保留正常股票: {len(tickers_df)}，已保存到 {ticker_csv_path}")
-
         except Exception as e:
             raise RuntimeError(f"Failed to fetch or filter ticker list: {e}")
 
-    # -----------------------------------------------------
-
+    # ----- Download each ticker -----
     tickers = tickers_df["code"].astype(str).tolist()
     if max_tickers is not None:
         tickers = tickers[:max_tickers]
 
-    
-
-    total = len(tickers)
-    i = 0
-    while i < total:
+    for i in tqdm(range(len(tickers)), desc="📥 Downloading stocks"):
         code = tickers[i]
         out_path = op.join(save_dir, f"{code}.csv")
         if op.exists(out_path):
             if verbose:
-                print(f"[{i+1}/{total}] Skip {code}: already exists")
-            i += 1
+                tqdm.write(f"[{i+1}/{len(tickers)}] Skip {code}: already exists")
             continue
 
         try:
             df = ef.stock.get_quote_history(stock_codes=code, beg=beg_str)
             if df is None or df.empty:
                 if verbose:
-                    print(f"[{i+1}/{total}] Skip {code}: empty")
-                i += 1
+                    tqdm.write(f"[{i+1}/{len(tickers)}] Skip {code}: empty")
                 continue
 
             needed_cols = ["日期", "开盘", "最高", "最低", "收盘", "成交量"]
             if not set(needed_cols).issubset(df.columns):
                 if verbose:
-                    print(f"[{i+1}/{total}] Skip {code}: missing columns")
-                i += 1
+                    tqdm.write(f"[{i+1}/{len(tickers)}] Skip {code}: missing columns")
                 continue
 
             df = df[needed_cols].copy()
@@ -98,8 +83,7 @@ def download_cn_stocks(save_date: str | None = None,
 
             if len(df) < min_rows:
                 if verbose:
-                    print(f"[{i+1}/{total}] Skip {code}: only {len(df)} rows (<{min_rows})")
-                i += 1
+                    tqdm.write(f"[{i+1}/{len(tickers)}] Skip {code}: only {len(df)} rows (<{min_rows})")
                 continue
 
             df["ma20"] = df["Close"].rolling(window=20, min_periods=20).mean()
@@ -107,25 +91,21 @@ def download_cn_stocks(save_date: str | None = None,
 
             if len(df) < 20:
                 if verbose:
-                    print(f"[{i+1}/{total}] Skip {code}: <20 rows after ma20")
-                i += 1
+                    tqdm.write(f"[{i+1}/{len(tickers)}] Skip {code}: <20 rows after ma20")
                 continue
 
             df.to_csv(out_path)
-
             if verbose:
-                print(f"[{i+1}/{total}] Saved {code} ({len(df)} rows)")
-            i += 1  # success, move to next
+                tqdm.write(f"[{i+1}/{len(tickers)}] Saved {code} ({len(df)} rows)")
 
         except Exception as e:
-            print(f"[{i+1}/{total}] Error {code}: {e}")
+            tqdm.write(f"[{i+1}/{len(tickers)}] ❌ Error {code}: {e}")
             input("Press Enter to retry this ticker...")
 
     if verbose:
-        print(f"Done. Files in: {save_dir}")
+        print(f"📁 Done. Files saved in: {save_dir}")
     return save_dir
 
 
-
 if __name__ == "__main__":
-    download_cn_stocks()
+    download_cn_stocks(verbose=True)

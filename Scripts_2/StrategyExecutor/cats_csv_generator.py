@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 
 
+# add current portfolio
+# sell first and buy second
+
 def export_algo_orders(
     account_name: str ,
     total_amount: float ,
@@ -10,12 +13,12 @@ def export_algo_orders(
     end_time: str ,
     algo_type: str = "TWAP",
     input_csv: str | Path = "current_deciles.csv",
-    output_csv: str | Path = "算法指令.csv"
+    output_csv: str | Path = "算法指令.csv",
+    top: int = 100
 ):
     """Split total_amount over top decile; round shares to 100s; write algo CSV."""
     df = pd.read_csv(input_csv)
-    top_dec = df["decile"].max()
-    top = df[df["decile"] == top_dec].sort_values("up_prob", ascending=False)
+    top = df.head(top)
     if top.empty:
         raise ValueError("No rows in the top decile")
 
