@@ -947,7 +947,7 @@ class Experiment(object):
     # - Saves results (typically as CSV) for further analysis.    
     
     def calculate_portfolio(
-        self, load_saved_data=True, delay_list=[0], is_ensem_res=True, cut=20
+        self, load_saved_data=True, delay_list=[0], is_ensem_res=True, cut=36, log=False
     ):
         ensem_res_year_list = (
             list(self.is_years) + list(self.oos_years)
@@ -965,7 +965,7 @@ class Experiment(object):
             delay_list = delay_list + [self.delayed_ret]
         pf_obj = self.load_portfolio_obj(delay_list)
         for delay in delay_list:
-            pf_obj.generate_portfolio(delay=delay, cut=cut)
+            pf_obj.generate_portfolio(delay=delay, cut=cut, log=log)
 
     def load_portfolio_obj(
         self, delay_list=[0], load_signal=True, custom_ret=None, transaction_cost=False
@@ -1488,6 +1488,8 @@ def run_arch_comparison(
     chart_type="bar",
     total_worker=1,
     worker_idx=0,
+    cut=36,
+    log=False,
 ):
     torch.set_num_threads(1)
     if total_worker > 1:
@@ -1555,7 +1557,7 @@ def run_arch_comparison(
             continue
         exp_obj.train_empirical_ensem_model(pretrained=pretrained)
         if calculate_portfolio:
-            exp_obj.calculate_portfolio(load_saved_data=load_saved_data, is_ensem_res=False)
+            exp_obj.calculate_portfolio(load_saved_data=load_saved_data, is_ensem_res=False, cut=cut, log=log)
 
         
 def train_ensem_model(

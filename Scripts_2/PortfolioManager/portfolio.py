@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import matplotlib.cm as cm
 from Misc import utilities as ut
 from DataHandler import equity_data as eqd
 
@@ -108,7 +108,7 @@ class PortfolioManager(object):
             signal_df = signal_df[~signal_df.MarketCap.isnull()].copy()
         return signal_df
 
-    def calculate_portfolio_rets(self, weight_type, cut=10, delay=0):
+    def calculate_portfolio_rets(self, weight_type, cut=10, delay=0, log=False):
         assert weight_type in ["ew", "vw"]
         assert delay in self.delay_list
         if self.custom_ret:
@@ -243,7 +243,7 @@ class PortfolioManager(object):
 
         plot_title = f"{self.freq.capitalize()} Portfolio ({weight_type.upper()} Weighting)"
         save_path = op.join(self.portfolio_dir, f"portfolio_plot_{weight_type}_{cut}.png")
-        self.make_portfolio_plot(portfolio_ret=portfolio_ret, cut=cut, weight_type=weight_type, plot_title=plot_title, save_path=save_path)
+        self.make_portfolio_plot(portfolio_ret=portfolio_ret, cut=cut, weight_type=weight_type, plot_title=plot_title, save_path=save_path, log=log)
 
         return portfolio_ret, np.mean(turnover)
 
@@ -264,7 +264,7 @@ class PortfolioManager(object):
 
     
     def make_portfolio_plot(
-        self, portfolio_ret, cut, weight_type, save_path, plot_title
+        self, portfolio_ret, cut, weight_type, save_path, plot_title, log=False
     ):
         import matplotlib.pyplot as plt
         import numpy as np
@@ -309,23 +309,44 @@ class PortfolioManager(object):
         # Convert returns to cumulative log returns
         log_ret_df = pd.DataFrame(index=df.index)
         for col in df.columns:
-            # log_ret_df[col] = self._ret_to_cum_log_ret(df[col])
-            log_ret_df[col] = self._ret_to_cum_ret(df[col])
+            if log:
+                log_ret_df[col] = self._ret_to_cum_log_ret(df[col])
+            else:
+                log_ret_df[col] = self._ret_to_cum_ret(df[col])
         print(f"[DEBUG] Cumulative log return columns: {log_ret_df.columns.tolist()}")
 
-        # Plot all lines
-        plt.figure(figsize=(20, 10))
-        for col in log_ret_df.columns:
-          lw=1
-          if col == "High(H)" or col == "Index":
-            lw = 4
-          plt.plot(log_ret_df.index, log_ret_df[col], label=col, lw=lw)
-        print(f"[DEBUG] Finished plotting all lines.")
+                
+        # Get column order
+        cols = log_ret_df.columns.tolist()
+
+        # Generate a colormap
+        cmap = cm.get_cmap('viridis', len(cols))
+
+        plt.figure(figsize=(10, 5))
+
+        for i, col in enumerate(cols):
+            if col == "H-L":
+                continue
+            lw = 1
+            if col == "High(H)" or col == "Index":
+                lw = 4
+            plt.plot(log_ret_df.index, log_ret_df[col], label=col, lw=lw, color=cmap(i))
+            
+            # Annotate the end point
+            final_val = log_ret_df[col].iloc[-1]
+            plt.text(log_ret_df.index[-1], final_val, f"{col}", fontsize=12, color=cmap(i),
+                    va='center', ha='left')
+
+        plt.title("Log Returns by Column Order")
+        plt.xlabel("Date")
+        plt.ylabel("Log Return")
+        plt.grid(True, linestyle='--', alpha=0.3)
+        print(f"[DEBUG] Finished plotting all lines (original column order, with annotations).")
 
         
         
         # Finalize plot
-        plt.ylim(0.6, 2)
+        plt.ylim(0.6, 1.6)
         plt.title(plot_title)
         plt.legend(loc="best", fontsize=8)
         plt.grid(True)
@@ -359,13 +380,13 @@ class PortfolioManager(object):
         print(summary_df)
         return summary_df
 
-    def generate_portfolio(self, cut=5, delay=0):
+    def generate_portfolio(self, cut=5, delay=0, log=False):
         assert delay in self.delay_list
         for weight_type in ["ew", "vw"]:
             pf_name = self.get_portfolio_name(weight_type, delay, cut)
             print(f"Calculating {pf_name}")
             portfolio_ret, turnover = self.calculate_portfolio_rets(
-                weight_type, cut=cut, delay=delay
+                weight_type, cut=cut, delay=delay, log=log
             )
             data_dir = ut.get_dir(op.join(self.portfolio_dir, "pf_data"))
             portfolio_ret.to_csv(op.join(data_dir, f"pf_data_{pf_name}.csv"))
