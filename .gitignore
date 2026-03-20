@@ -1,5 +1,28 @@
+# Data & outputs
 WORK_SPACE/
 CACHE_DIR/
+
+# Environment
 cnn_env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Generated
 *.html
-*.txt
